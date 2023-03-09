@@ -87,37 +87,36 @@ impl Curve {
     // @todo fn erase()
 }
 
+/// The interface for incrementally creating a curve (e.g. while the user is drawing).
+/// Consumes itself when you call `end_curve` to ensure you don't accidentally add points to it later.
+struct CurveInProgress {
+    curve: Curve,
+}
+impl CurveInProgress {
+    /// Begin drawing a curve.
+    pub fn start(first_point: Point) -> Self {
+        Self { curve: Curve::new(first_point) }
+    }
+    /// Add a new point to the curve.
+    pub fn add_point(&mut self, p: Point) {
+        self.curve.add_point(p);
+    }
+    /// Finish the current curve.
+    /// Returns the finished curve.
+    pub fn finish(self) -> Curve {
+        self.curve
+    }
+}
+
 #[derive(Default)]
 struct Canvas {
     curves: Vec<Curve>,
-    current_curve: Option<Curve>, // curve currently being drawn
 }
 impl Canvas {
-    /// Begin drawing a curve.
-    /// Every subsequent call to `continue_curve` adds a point to this curve.
-    pub fn start_curve(&mut self, first_point: Point) {
-        assert!(
-            self.current_curve.is_none(),
-            "Attempted to start a new curve before ending the previous one"
-        );
-        let curve = Curve::new(first_point);
-        self.current_curve = Some(curve);
-    }
-    /// Add a point to the curve currently being drawn.
-    pub fn continue_curve(&mut self, new_point: Point) {
-        self.current_curve.as_mut().expect("Attempted to continue a curve that doesn't exist")
-            .add_point(new_point);
-    }
-    /// Stop drawing the current curve.
-    /// It is illegal to subsequently call `continue_curve` or `end_curve` before `start_curve`.
-    pub fn end_curve(&mut self) {
-        self.curves.push(
-            self.current_curve.take().expect("Attempted to end a curve that doesn't exist")
-        );
-    }
-
     /// Render a single curve.
-    fn render_curve(curve: &Curve) {
+    /// This can be used to render curves that aren't strictly part of the canvas yet, such as a stroke that
+    /// the user is in the process of drawing.
+    pub fn render_curve(curve: &Curve) {
         for endpoints in curve.points.windows(2) {
             let p1 = endpoints[0];
             let p2 = endpoints[1];
@@ -135,46 +134,50 @@ impl Canvas {
     /// Render all objects on the canvas to the screen.
     pub fn render(&self) {
         for curve in &self.curves { Self::render_curve(curve); }
-        if let Some(curve) = &self.current_curve { Self::render_curve(curve); }
+    }
+
+    /// Add a new curve to the canvas.
+    pub fn add_curve(&mut self, curve: Curve) {
+        self.curves.push(curve);
     }
 }
 
 #[macroquad::main("test window")] // window name
 async fn main() {
 
-    let mut dbg_string = String::new();
+    let mut dbg_string = String::new(); // some debug info shown in a corner of the canvas
     let mut canvas = Canvas::default();
-
-    let mut lmb_was_already_pressed = false;
+    let mut current_curve: Option<CurveInProgress> = None; // the curve the user is currently drawing
 
     loop {
         clear_background(BLACK);
         dbg_string.clear();
 
-        let (mouse_x, mouse_y) = mouse_position();
-        dbg_string.push_str(format!("{mouse_x},{mouse_y}").as_str());
+        let mouse_pos: Point = mouse_position().into();
+        dbg_string.push_str(format!(" {},{}", mouse_pos.x, mouse_pos.y).as_str());
 
-        // @todo instead of checking if the button was already pressed, maybe shoud just check if a curve was
-        // already being drawn.
         if is_mouse_button_down(MouseButton::Left) {
             dbg_string.push_str(" LEFT");
 
-            let point = Point::new(mouse_x, mouse_y);
-            if lmb_was_already_pressed { canvas.continue_curve(point); }
+            if let Some(ref mut curve) = current_curve { curve.add_point(mouse_pos); }
             else {
-                canvas.start_curve(point);
-                lmb_was_already_pressed = true;
+                current_curve = Some(CurveInProgress::start(mouse_pos));
             }
         }
         else if is_mouse_button_released(MouseButton::Left) { // was it realeased this frame?
-            canvas.end_curve();
-            lmb_was_already_pressed = false;
+            if current_curve.is_some() {
+                let finished_curve = current_curve.take().unwrap().finish();
+                canvas.add_curve(finished_curve);
+            }
         }
         // fun debug output, not actually using this
         if is_mouse_button_down(MouseButton::Right) { dbg_string.push_str(" RIGHT"); }
 
         // render
         canvas.render();
+        // also render the curve the user is currently drawing
+        if let Some(ref curve) = current_curve { Canvas::render_curve(&curve.curve); }
+        // render debug text
         draw_text(dbg_string.as_str(), 20.0, 20.0, 30.0, DARKGRAY);
 
         next_frame().await
