@@ -79,12 +79,17 @@ impl Curve {
             bounding_box: Box { p1: first_point, p2: first_point },
         }
     }
+
     fn add_point(&mut self, p: Point) {
         self.points.push(p);
         // update the bounding box
         self.bounding_box.expand_to_contain(p);
     }
-    // @todo fn erase()
+
+    // /// Return the new set of curves that results from erasing every point in `region`
+    // fn erase(region: Box) {
+        
+    // }
 }
 
 /// The interface for incrementally creating a curve (e.g. while the user is drawing).
