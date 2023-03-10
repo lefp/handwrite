@@ -26,6 +26,61 @@ impl Box {
         self.p1 = self.p1.min(p);
         self.p2 = self.p2.max(p);
     }
+
+    /// Returns true iff `p` is in the box (boundary included).
+    fn contains(&self, p: Point) -> bool {
+        self.p1.x <= p.x &&
+        self.p1.y <= p.y &&
+        self.p2.x >= p.x &&
+        self.p2.y >= p.y
+    }
+}
+
+/// A rectangle with an orientation.
+/// Think of it as the rectangle formed by connecting points `abcda` in that order.
+/// `a` defines the position of one corner.
+/// `ab` and `ad` are an orthogonal pair of vectors defining the sides of the rectangle adjacent to a.
+// @todo determine whether the sides should be allowed to be 0 or non-orthogonal
+struct Rectangle {
+    a: Point,
+    ab: Vec2,
+    ad: Vec2,
+}
+impl Rectangle {
+    /// Is the point inside the rectangle?
+    /// Includes the boundary.
+    fn contains(&self, p: Point) -> bool {
+        let mut contains = true;
+
+        // `p` is in the rectangle iff the projection of `ap` onto the basis `{ab, ad}` is in the projected
+        // rectangle `{z | 0 <= z_ab <= ab_ab, 0 <= z_ad <= ad_ad}`, where `z_ab` represents to component of
+        // `z` in the direction `ab`.
+        let ap: Vec2 = p - self.a;
+        for basis_vec in [self.ab, self.ad] {
+            let proj = ap.dot(basis_vec);
+            // @todo is this the right operator for boolean AND?
+            contains &= 0. <= proj && proj <= basis_vec.dot(basis_vec);
+        }
+
+        contains
+    }
+
+    /// Creates a rectangle along the line segment `[p, p+v]`.
+    /// `w` is the width of the rectangle.
+    /**
+          ---------------------       ---
+          |                   |        |
+        p *-------------------> v      w
+          |                   |        |
+          ---------------------       ---
+    */
+    // @todo probably needs a unit test
+    fn along_line_segment(p: Point, v: Vec2, w: f32) -> Self {
+        let ab = v;
+        let ad = v.perp().normalize_or_zero() * w;
+        let a = p - 0.5 * ad;
+        Self { a, ab, ad }
+    }
 }
 
 /// A sequence of points. No thickness information attached!
