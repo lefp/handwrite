@@ -121,7 +121,7 @@ impl Curve {
 }
 
 /// The interface for incrementally creating a curve (e.g. while the user is drawing).
-/// Consumes itself when you call `end_curve` to ensure you don't accidentally add points to it later.
+/// Consumes itself when you call `finish` to ensure you don't accidentally add points to it later.
 struct CurveInProgress {
     curve: Curve,
 }
