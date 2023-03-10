@@ -9,36 +9,9 @@ Canvas
 // specifically for showing bounding boxes
 
 use macroquad::prelude::*;
+use glam::Vec2;
 
-#[derive(Clone, Copy)]
-struct Point {
-    x: f32,
-    y: f32,
-}
-impl Point {
-    fn new(x: f32, y: f32) -> Self {
-        Point { x, y }
-    }
-
-    /// Component-wise min.
-    fn min(&self, p: Point) -> Point {
-        Point { x: self.x.min(p.x), y: self.y.min(p.y) }
-    }
-    /// Component-wise max.
-    fn max(&self, p: Point) -> Point {
-        Point { x: self.x.max(p.x), y: self.y.max(p.y) }
-    }
-}
-impl From<(f32, f32)> for Point {
-    fn from(point: (f32, f32)) -> Self {
-        Self::new(point.0, point.1)
-    }
-}
-impl Into<(f32, f32)> for Point {
-    fn into(self) -> (f32, f32) {
-        (self.x, self.y)
-    }
-}
+type Point = Vec2;
 
 /// A rectangle with no rotation information.
 /// Satisfies p1.x <= p2.x, p1.y <= p2.y
