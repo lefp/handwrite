@@ -64,10 +64,13 @@ impl Canvas {
     }
     /// Finish drawing the current stroke on the canvas.
     /// This commits the curve to the canvas; you can't add any points to it after this.
+    /// If the stroke contains one point or less, simply discards the stroke.
     /// Returns an error if there is no stroke in progress.
     pub fn end_stroke(&mut self) -> Result<(), DoesntExist> {
         if let Some(curve) = self.current_curve.take() {
-            self.curves.push(LineString::from(curve));
+            // Only commit the curve if it has more than one point; otherwise just discard it, because the doc
+            // says "a LineString is valid if it is either empty or contains 2 or more coordinates."
+            if curve.len() > 1 { self.curves.push(LineString::from(curve)); }
             Ok(())
         }
         else { Err(DoesntExist) }
