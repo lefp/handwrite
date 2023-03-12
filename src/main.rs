@@ -8,8 +8,9 @@ Canvas
 // @todo can replace some uses of #[cfg(debug_assertions)] with more fine-grained switches, like one
 // specifically for showing bounding boxes
 
-use macroquad::prelude::*;
 mod canvas;
+
+use macroquad::prelude::*;
 use canvas::{Canvas, Point};
 
 #[macroquad::main("test window")] // window name

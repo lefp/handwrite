@@ -7,3 +7,5 @@ edition = "2021"
 
 [dependencies]
 macroquad = "0.3.25"
+geo = "0.24.0"
+itertools = "0.10.5"
