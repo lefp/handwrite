@@ -36,7 +36,7 @@ pub struct Rectangle {
     ab: Vec2,
     ad: Vec2,
 }
-pub impl Rectangle {
+impl Rectangle {
     /// Is the point inside the rectangle?
     /// Includes the boundary.
     pub fn contains(&self, p: Point) -> bool {
@@ -110,36 +110,24 @@ impl Curve {
     // }
 }
 
-/// The interface for incrementally creating a curve (e.g. while the user is drawing).
-/// Consumes itself when you call `finish` to ensure you don't accidentally add points to it later.
-pub struct CurveInProgress {
-    curve: Curve,
-}
-impl CurveInProgress {
-    /// Begin drawing a curve.
-    pub fn start(first_point: Point) -> Self {
-        Self { curve: Curve::new(first_point) }
-    }
-    /// Add a new point to the curve.
-    pub fn add_point(&mut self, p: Point) {
-        self.curve.add_point(p);
-    }
-    /// Finish the current curve.
-    /// Returns the finished curve.
-    pub fn finish(self) -> Curve {
-        self.curve
-    }
-}
+/// Error returned when starting a new stroke when one is already in progress.
+#[derive(Debug)]
+pub struct AlreadyExists;
+/// Error returned when adding a point to or finishing the current stroke,
+/// but the current stroke doesn't exist.
+#[derive(Debug)]
+pub struct DoesntExist;
 
 #[derive(Default)]
 pub struct Canvas {
     curves: Vec<Curve>,
+    current_curve: Option<Curve>,
 }
 impl Canvas {
     /// Render a single curve.
     /// This can be used to render curves that aren't strictly part of the canvas yet, such as a stroke that
     /// the user is in the process of drawing.
-    pub fn render_curve(curve: &Curve) {
+    fn render_curve(curve: &Curve) {
         for endpoints in curve.points.windows(2) {
             let p1 = endpoints[0];
             let p2 = endpoints[1];
@@ -157,10 +145,38 @@ impl Canvas {
     /// Render all objects on the canvas to the screen.
     pub fn render(&self) {
         for curve in &self.curves { Self::render_curve(curve); }
+        if let Some(ref curve) = self.current_curve { Self::render_curve(curve); }
     }
 
-    /// Add a new curve to the canvas.
-    pub fn add_curve(&mut self, curve: Curve) {
-        self.curves.push(curve);
+    /// Start drawing a stroke on the canvas.
+    /// Returns an error if there is already a stroke in progress.
+    pub fn begin_stroke(&mut self, first_point: Point) -> Result<(), AlreadyExists> {
+        if self.current_curve.is_some() { Err(AlreadyExists) }
+        else {
+            self.current_curve = Some(Curve::new(first_point));
+            Ok(())
+        }
     }
+    /// Add points to the stroke currently being drawn on the canvas.
+    /// Returns an error if there is no stroke in progress.
+    pub fn continue_stroke(&mut self, p: Point) -> Result<(), DoesntExist> {
+        if let Some(ref mut curve) = self.current_curve {
+            curve.add_point(p);
+            Ok(())
+        }
+        else { Err(DoesntExist) }
+    }
+    /// Finish drawing the current stroke on the canvas.
+    /// This commits the curve to the canvas; you can't add any points to it after this.
+    /// Returns an error if there is no stroke in progress.
+    pub fn end_stroke(&mut self) -> Result<(), DoesntExist> {
+        if let Some(curve) = self.current_curve.take() {
+            self.curves.push(curve);
+            Ok(())
+        }
+        else { Err(DoesntExist) }
+    }
+    /// Is a stroke currently being drawn on the canvas?
+    /// True iff the latest stroke created by `begin_stroke` hasn't yet been ended via `end_stroke`.
+    pub fn is_stroke_in_progress(&self) -> bool { self.current_curve.is_some() }
 }
