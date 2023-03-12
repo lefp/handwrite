@@ -26,6 +26,7 @@ async fn main() {
         let mouse_pos: Point = mouse_position().into();
         dbg_string.push_str(format!(" {},{}", mouse_pos.x, mouse_pos.y).as_str());
 
+        // LMB draws
         if is_mouse_button_down(MouseButton::Left) {
             dbg_string.push_str(" LEFT");
 
@@ -36,8 +37,16 @@ async fn main() {
             if canvas.is_stroke_in_progress() { canvas.end_stroke().unwrap(); }
         }
 
-        // fun debug output, not actually using this
-        if is_mouse_button_down(MouseButton::Right) { dbg_string.push_str(" RIGHT"); }
+        // RMB erases
+        if is_mouse_button_down(MouseButton::Right) {
+            dbg_string.push_str(" RIGHT");
+
+            if canvas.is_erasure_in_progress() { canvas.continue_erasure(mouse_pos).unwrap(); }
+            else { canvas.begin_erasure(mouse_pos).unwrap(); };
+        }
+        else if is_mouse_button_released(MouseButton::Right) { // mouse button just released this frame
+            if canvas.is_stroke_in_progress() { canvas.end_erasure().unwrap(); }
+        }
 
         // render
         canvas.render();
